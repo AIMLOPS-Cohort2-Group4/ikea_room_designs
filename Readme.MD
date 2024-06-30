@@ -23,3 +23,6 @@ This project provides a Gradio web interface for genrate ai room desgins to imag
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+
+
+```gunicorn -w 4 -b 0.0.0.0:8000 main:app```
