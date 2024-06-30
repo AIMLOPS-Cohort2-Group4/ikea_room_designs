@@ -2,3 +2,5 @@ gradio
 transformers
 torch
 diffusers
+gunicorn
+accelerate
