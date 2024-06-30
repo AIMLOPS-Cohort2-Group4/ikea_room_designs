@@ -20,5 +20,8 @@ with gr.Blocks() as demo:
 
     user_input.submit(fn=generate_image, inputs=user_input, outputs=generated_image_output)
 
-if __name__ == "__main__":
+def launch():
     demo.launch()
+
+if __name__ == "__main__":
+    launch()    
