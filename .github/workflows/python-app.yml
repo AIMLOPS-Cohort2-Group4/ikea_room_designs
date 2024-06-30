@@ -11,7 +11,8 @@ on:
 
 env:
     AWS_REGION: us-east-1
-    ECR_REPOSITORY: http://211125297375.dkr.ecr.us-east-1.amazonaws.com/demo_ikea_gen_ai
+    ECR_REGISTRY: http://211125297375.dkr.ecr.us-east-1.amazonaws.com
+    ECR_REPOSITORY: demo_ikea_gen_ai
     ECS_SERVICE: service-1
     ECS_CLUSTER: MLCluster
     ECS_TASK_DEFINITION: sample-fargate-1.json
