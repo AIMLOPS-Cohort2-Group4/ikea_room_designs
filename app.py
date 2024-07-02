@@ -1,10 +1,14 @@
 import gradio as gr
 from diffusers import StableDiffusionPipeline
 import torch
+from diffusers import DiffusionPipeline
 
 #model_id = "runwayml/stable-diffusion-v1-5"
-model_id = "nbadrinath/ikea_room_designs_sd1.5_lora_full_finetuning_020720240714"
-pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+#pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+#pipe = pipe.to("cuda")
+
+pipe = DiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5")
+pipe.load_lora_weights("nbadrinath/ikea_room_designs_sd1.5_lora_full_finetuning_020720240714")
 pipe = pipe.to("cuda")
 
 def generate_image(prompt):
