@@ -10,8 +10,8 @@ on:
     branches: [ "development" ]
 
 env:
-    AWS_REGION: us-east-1
-    ECR_REPOSITORY: demo_ikea_gen_ai
+    AWS_REGION: ap-south-1
+    ECR_REPOSITORY: gen-ai-interior-design-ikea
     ECS_SERVICE: service-1
     ECS_CLUSTER: MLCluster
     ECS_TASK_DEFINITION: sample-fargate-1.json
