@@ -6,3 +6,5 @@ gunicorn
 accelerate
 peft
 openai
+safetensors
+invisible_watermark
