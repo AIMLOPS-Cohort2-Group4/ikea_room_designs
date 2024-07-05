@@ -58,9 +58,7 @@ def generate_image(user_prompt, use_ai_prompt, ai_generated_prompt, selected_mod
     pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
 
     image = pipe(prompt).images[0]
-    output_path = "generated_image.png"
-    image.save(output_path)
-    return prompt, output_path
+    return image
 
 models = getHuggingfaceModels()
 
@@ -78,7 +76,7 @@ with gr.Blocks() as demo:
         with gr.Column():
             ai_generated_prompt = gr.Textbox(label="AI generated detailed prompt")
 
-    generated_image_output = gr.Image(label="Generated Image")
+    generated_image_output = gr.Image(label="Generated Image", width=512, height=512)
 
     user_prompt.submit(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt], outputs=[ai_generated_prompt])
     ai_generated_prompt.change(fn=generate_image, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt, model_list], outputs=[generated_image_output])
