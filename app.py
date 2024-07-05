@@ -7,7 +7,6 @@ from openai import OpenAI
 from diffusers import StableDiffusionXLImg2ImgPipeline
 from diffusers.utils import load_image
 
-
 huggingfaceApKey = os.environ["HUGGINGFACE_API_KEY"]
 hugging_face_user = os.getenv("HUGGING_FACE_USERNAME")
 
@@ -42,8 +41,7 @@ def generate_ai_prompt(prompt, use_ai_prompt, ai_generated_prompt):
         prompt = improve_prompt(prompt)
         return prompt
     else:
-        prompt = " "
-        return prompt
+        return ""
     
 def generate_image(user_prompt, use_ai_prompt, ai_generated_prompt, selected_model):
     if(use_ai_prompt):
@@ -65,19 +63,17 @@ def generate_image(user_prompt, use_ai_prompt, ai_generated_prompt, selected_mod
     image.save(output_path)
     return image
 
-
 def refine_generated_image(generated_image_output):        
     pipe = StableDiffusionXLImg2ImgPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-refiner-1.0", torch_dtype=torch.float16, variant="fp16", use_safetensors=True
     )
     pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
-    url = "ui_screenshot/ai_generated_image.png"
 
-    input_image = load_image(url).convert("RGB")
+    input_image = generated_image_output.convert("RGB")
+    
     prompt = ""
     refined_image = pipe(prompt, image=input_image).images[0]
     return refined_image
-
 
 models = getHuggingfaceModels()
 
@@ -95,20 +91,21 @@ with gr.Blocks() as demo:
         with gr.Column():
             ai_generated_prompt = gr.Textbox(label="AI generated detailed prompt")
 
-    generated_image_output = gr.Image(label="Generated Image", sources="clipboard", width=512, height=512)
+    with gr.Row():
+        with gr.Column():
+            generate_image_button = gr.Button(value="Generate Image")
+        with gr.Column():    
+            generated_image_output = gr.Image(label="Generated Image", width=512, height=512, type="pil")
 
     with gr.Row():
         with gr.Column():
             refine_image = gr.Button(value="Refine Image")
         with gr.Column():
-            ""
-        with gr.Column():
-            ""
-            
-    refine_image_output = gr.Image(label="Refined Image", width=512, height=512)    
+            refine_image_output = gr.Image(label="Refined Image", width=512, height=512)
+
 
     user_prompt.submit(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt], outputs=[ai_generated_prompt])
-    ai_generated_prompt.change(fn=generate_image, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt, model_list], outputs=[generated_image_output])
+    generate_image_button.click(fn=generate_image, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt, model_list], outputs=[generated_image_output])
     refine_image.click(fn=refine_generated_image, inputs=[generated_image_output], outputs=[refine_image_output])
 
 def launch():
