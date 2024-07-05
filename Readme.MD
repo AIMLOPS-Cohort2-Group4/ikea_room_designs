@@ -15,6 +15,12 @@ This project provides a Gradio web interface for genrate ai room desgins to imag
 - `gradio`
 - `opencv-python-headless`
 
+## Environment Variables
+Below environment variables needs to be set to use the application
+- HUGGINGFACE_API_KEY
+- HUGGING_FACE_USERNAME
+- OPENAI_API_KEY
+
 ## Installation
 
 1. Clone the repository or download the source code.

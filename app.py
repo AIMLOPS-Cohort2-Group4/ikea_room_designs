@@ -36,15 +36,15 @@ def improve_prompt(prompt):
     ai_generated_prompt = completion.choices[0].message.content
     return ai_generated_prompt
 
-def generate_ai_prompt(prompt, use_ai_prompt, ai_generated_prompt):
-    if(use_ai_prompt and prompt.strip() != "" and ai_generated_prompt.strip() == ""):
+def generate_ai_prompt(prompt, use_ai_prompt):
+    if(use_ai_prompt and prompt.strip() != ""):
         prompt = improve_prompt(prompt)
         return prompt
     else:
         return ""
     
 def generate_image(user_prompt, use_ai_prompt, ai_generated_prompt, selected_model):
-    if(use_ai_prompt):
+    if(use_ai_prompt and user_prompt.strip() != "" and ai_generated_prompt.strip() != ""):
         prompt = ai_generated_prompt
     else:
         prompt = user_prompt
@@ -104,7 +104,7 @@ with gr.Blocks() as demo:
             refine_image_output = gr.Image(label="Refined Image", width=512, height=512)
 
 
-    user_prompt.submit(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt], outputs=[ai_generated_prompt])
+    user_prompt.submit(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt], outputs=[ai_generated_prompt])
     generate_image_button.click(fn=generate_image, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt, model_list], outputs=[generated_image_output])
     refine_image.click(fn=refine_generated_image, inputs=[generated_image_output], outputs=[refine_image_output])
 
