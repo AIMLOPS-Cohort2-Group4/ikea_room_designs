@@ -5,6 +5,12 @@ from diffusers import DiffusionPipeline
 from huggingface_hub import HfApi
 from openai import OpenAI
 from diffusers import StableDiffusionXLImg2ImgPipeline
+from torchmetrics.functional.multimodal import clip_score
+from functools import partial
+from nltk.corpus import stopwords 
+from nltk.tokenize import word_tokenize 
+from transformers import BlipProcessor, BlipForConditionalGeneration
+from PIL import Image
 
 huggingfaceApKey = os.environ["HUGGINGFACE_API_KEY"]
 hugging_face_user = os.getenv("HUGGING_FACE_USERNAME")
@@ -61,6 +67,9 @@ def generate_image(user_prompt, use_ai_prompt, ai_generated_prompt, selected_mod
     output_path = "ui_screenshot/ai_generated_image.png"
     image.save(output_path)
 
+    log_clip_score(prompt, image)
+    log_cosine_similarity(prompt, output_path)
+
     return image
 
 def refine_generated_image(generated_image_output):        
@@ -74,6 +83,66 @@ def refine_generated_image(generated_image_output):
     prompt = ""
     refined_image = pipe(prompt, image=input_image).images[0]
     return refined_image
+
+def log_clip_score(prompt, image):
+    clip_score_fn = partial(clip_score, model_name_or_path="openai/clip-vit-base-patch16")
+
+    def calculate_clip_score(images, prompts):
+        images_int = (images * 255).astype("uint8")
+        clip_score = clip_score_fn(torch.from_numpy(images_int).permute(0, 3, 1, 2), prompts).detach()
+        return round(float(clip_score), 4)
+
+    sd_clip_score = calculate_clip_score([image], [prompt])
+    print("Clip Score:", sd_clip_score)
+
+def log_cosine_similarity(prompt, generated_image_path):
+    
+    image_caption = generate_image_caption(generated_image_path)
+    
+    X_list = word_tokenize(prompt)  
+    Y_list = word_tokenize(image_caption) 
+    
+    sw = stopwords.words('english')  
+    l1 =[];l2 =[] 
+    
+    X_set = {w for w in X_list if not w in sw}  
+    Y_set = {w for w in Y_list if not w in sw} 
+    
+    rvector = X_set.union(Y_set)  
+    for w in rvector: 
+        if w in X_set: l1.append(1) # create a vector 
+        else: l1.append(0) 
+        if w in Y_set: l2.append(1) 
+        else: l2.append(0) 
+    c = 0
+    
+    for i in range(len(rvector)): 
+            c+= l1[i]*l2[i] 
+    cosine = c / float((sum(l1)*sum(l2))**0.5) 
+    print("Similarity: ", cosine) 
+
+def generate_image_caption(image_path):
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+    model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
+
+    raw_image = Image.open(image_path).convert('RGB')
+    inputs = processor(raw_image, return_tensors="pt").to(device)
+
+    generation_args = {
+    "max_length": 500,  # Maximum length of the caption
+    "num_beams": 5,    # Beam search with 5 beams
+    "temperature": 1.0, # Sampling temperature
+    "top_k": 50,       # Top-k sampling
+    "top_p": 0.95,     # Top-p (nucleus) sampling
+    "no_repeat_ngram_size": 2  # Prevent repetition of 2-grams
+    }
+
+    out = model.generate(**inputs, **generation_args)
+    caption = processor.decode(out[0], skip_special_tokens=True)
+    return caption
 
 models = getHuggingfaceModels()
 
