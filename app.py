@@ -13,7 +13,7 @@ from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 import cv2
 
-huggingfaceApKey = os.environ["HUGGINGFACE_API_KEY"]
+huggingfaceApKey = os.getenv("HUGGINGFACE_API_KEY")
 hugging_face_user = os.getenv("HUGGING_FACE_USERNAME")
 
 ikea_models = []
@@ -30,7 +30,7 @@ def getHuggingfaceModels():
     return ikea_models
 
 def improve_prompt(prompt):
-    client = OpenAI(api_key = os.environ["OPENAI_API_KEY"])
+    client = OpenAI(api_key = os.getenv("OPENAI_API_KEY"))
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         max_tokens=77,
