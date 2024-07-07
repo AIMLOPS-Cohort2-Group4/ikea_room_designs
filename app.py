@@ -13,6 +13,8 @@ from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 import cv2
 
+from dotenv import load_dotenv
+
 huggingfaceApKey = os.getenv("HUGGINGFACE_API_KEY")
 hugging_face_user = os.getenv("HUGGING_FACE_USERNAME")
 
