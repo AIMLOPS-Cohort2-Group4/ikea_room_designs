@@ -5,12 +5,13 @@ from diffusers import DiffusionPipeline
 from huggingface_hub import HfApi
 from openai import OpenAI
 from diffusers import StableDiffusionXLImg2ImgPipeline
-from torchmetrics.functional.multimodal import clip_score
 from functools import partial
 from nltk.corpus import stopwords 
 from nltk.tokenize import word_tokenize 
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
+from transformers import CLIPProcessor, CLIPModel
+import cv2
 
 huggingfaceApKey = os.environ["HUGGINGFACE_API_KEY"]
 hugging_face_user = os.getenv("HUGGING_FACE_USERNAME")
@@ -67,8 +68,8 @@ def generate_image(user_prompt, use_ai_prompt, ai_generated_prompt, selected_mod
     output_path = "ui_screenshot/ai_generated_image.png"
     image.save(output_path)
 
-    log_clip_score(prompt, image)
-    log_cosine_similarity(prompt, output_path)
+    log_clip_score(image, prompt)
+    #log_cosine_similarity(prompt, output_path)
 
     return image
 
@@ -84,16 +85,24 @@ def refine_generated_image(generated_image_output):
     refined_image = pipe(prompt, image=input_image).images[0]
     return refined_image
 
-def log_clip_score(prompt, image):
-    clip_score_fn = partial(clip_score, model_name_or_path="openai/clip-vit-base-patch16")
+def CLIP_score_calculator(image, prompt):
+    clip_model_id = "openai/clip-vit-base-patch32"
+    clip_model = CLIPModel.from_pretrained(clip_model_id)
+    clip_processor = CLIPProcessor.from_pretrained(clip_model_id)
+    
+    inputs = clip_processor(text=prompt, images=image, return_tensors="pt", padding=True)
+    outputs = clip_model(**inputs)
+    
+    logits_per_image = outputs.logits_per_image
+    logits_per_text = outputs.logits_per_text
+    
+    score = logits_per_image.item()
+    return score
 
-    def calculate_clip_score(images, prompts):
-        images_int = (images * 255).astype("uint8")
-        clip_score = clip_score_fn(torch.from_numpy(images_int).permute(0, 3, 1, 2), prompts).detach()
-        return round(float(clip_score), 4)
-
-    sd_clip_score = calculate_clip_score([image], [prompt])
-    print("Clip Score:", sd_clip_score)
+def log_clip_score(image, prompt):
+    clip_score = CLIP_score_calculator(image, prompt)
+    print("CLIP score:", clip_score)
+    
 
 def log_cosine_similarity(prompt, generated_image_path):
     
@@ -178,7 +187,7 @@ with gr.Blocks() as demo:
     refine_image.click(fn=refine_generated_image, inputs=[generated_image_output], outputs=[refine_image_output])
 
 def launch():
-    demo.launch()
+    demo.launch(share=True)
 
 if __name__ == "__main__":
     launch()    

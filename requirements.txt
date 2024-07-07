@@ -8,3 +8,5 @@ peft
 openai
 safetensors
 invisible_watermark
+torchmetrics
+nltk
