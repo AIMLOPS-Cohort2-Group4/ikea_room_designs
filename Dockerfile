@@ -36,4 +36,4 @@ COPY . .
 EXPOSE 7860
 
 # Run the application.
-CMD gunicorn 'main:app' --bind=0.0.0.0:7860
+CMD ["python", "app.py"]

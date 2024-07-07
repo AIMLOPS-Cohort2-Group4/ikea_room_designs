@@ -5,7 +5,6 @@ from diffusers import DiffusionPipeline
 from huggingface_hub import HfApi
 from openai import OpenAI
 from diffusers import StableDiffusionXLImg2ImgPipeline
-from diffusers.utils import load_image
 
 huggingfaceApKey = os.environ["HUGGINGFACE_API_KEY"]
 hugging_face_user = os.getenv("HUGGING_FACE_USERNAME")
@@ -61,6 +60,7 @@ def generate_image(user_prompt, use_ai_prompt, ai_generated_prompt, selected_mod
     image = pipe(prompt).images[0]
     output_path = "ui_screenshot/ai_generated_image.png"
     image.save(output_path)
+
     return image
 
 def refine_generated_image(generated_image_output):        
