@@ -5,6 +5,7 @@ from diffusers import DiffusionPipeline
 from huggingface_hub import HfApi
 from openai import OpenAI
 from diffusers import StableDiffusionXLImg2ImgPipeline
+from diffusers.utils import load_image
 from functools import partial
 from nltk.corpus import stopwords 
 from nltk.tokenize import word_tokenize 
@@ -14,6 +15,8 @@ from transformers import CLIPProcessor, CLIPModel
 import cv2
 
 from dotenv import load_dotenv
+
+load_dotenv()
 
 huggingfaceApKey = os.getenv("HUGGINGFACE_API_KEY")
 hugging_face_user = os.getenv("HUGGING_FACE_USERNAME")
@@ -189,7 +192,7 @@ with gr.Blocks() as demo:
     refine_image.click(fn=refine_generated_image, inputs=[generated_image_output], outputs=[refine_image_output])
 
 def launch():
-    demo.launch(share=True)
+    demo.launch(server_name="0.0.0.0", server_port=7860)
 
 if __name__ == "__main__":
     launch()    

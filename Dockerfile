@@ -1,39 +1,38 @@
-# syntax=docker/dockerfile:1
+# Base image with CUDA support
+FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
 
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Dockerfile reference guide at
-# https://docs.docker.com/go/dockerfile-reference/
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
+# Install Python and other dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    python3-pip \
+    python3-dev \
+    git \
+    curl \
+    libgl1-mesa-glx \
+    libglib2.0-0 && \
+    rm -rf /var/lib/apt/lists/*
 
-ARG PYTHON_VERSION=3.12.2
-FROM python:${PYTHON_VERSION}-slim as base
+# Install the NVIDIA Container Toolkit
+RUN apt-get update && \
+    apt-get install -y nvidia-container-toolkit && \
+    rm -rf /var/lib/apt/lists/*
 
-# Prevents Python from writing pyc files.
-ENV PYTHONDONTWRITEBYTECODE=1
+# Set up the Python environment
+RUN pip3 install --upgrade pip
 
-# Keeps Python from buffering stdout and stderr to avoid situations where
-# the application crashes without emitting any logs due to buffering.
-ENV PYTHONUNBUFFERED=1
+# Copy the requirements file and install dependencies
+COPY requirements.txt /app/requirements.txt
+RUN pip3 install --no-cache-dir -r /app/requirements.txt
 
+# Copy the application code
+COPY . /app
 WORKDIR /app
 
-# Create a non-privileged user that the app will run under.
-# See https://docs.docker.com/go/dockerfile-user-best-practices/
-
-# Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
-# Leverage a bind mount to requirements.txt to avoid having to copy them into
-# into this layer.
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=bind,source=requirements.txt,target=requirements.txt \
-    python -m pip install -r requirements.txt
-
-# Copy the source code into the container.
-COPY . .
-
-# Expose the port that the application listens on.
+# Expose the port the app runs on
 EXPOSE 7860
 
-# Run the application.
-CMD ["python", "app.py"]
+# Run the application
+CMD ["python3", "app.py"]
