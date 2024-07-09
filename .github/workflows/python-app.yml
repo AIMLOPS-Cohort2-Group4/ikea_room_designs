@@ -69,11 +69,11 @@ jobs:
         IMAGE_TAG: ${{ github.sha }}
       run: |
         ls -l
-        sed -i "s|image: .*|image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|g" ./gradio-deployment-k8\'s/deployment.yaml
+        sed -i "s|image: .*|image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|g" ./gradio-deployment-k8/deployment.yaml
 
     - name: Apply Kubernetes configuration
       run: |
-        kubectl replace --force -f deployment.yaml -n gradio-fe
+        kubectl replace --force -f ./gradio-deployment-k8/deployment.yaml -n gradio-fe
 
     - name: Get pods
       run: |
