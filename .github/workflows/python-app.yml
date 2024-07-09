@@ -68,7 +68,8 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        sed -i "s|image: .*|image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|g" ./gradio-deployment-k8's/deployment.yaml
+        ls -l
+        sed -i "s|image: .*|image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|g" ./gradio-deployment-k8\'s/deployment.yaml
 
     - name: Apply Kubernetes configuration
       run: |
