@@ -161,7 +161,7 @@ def generate_image_caption(image_path):
 models = getHuggingfaceModels()
 
 with gr.Blocks() as demo:
-    gr.Markdown("# GEN-AI Interior Designing using IKEA Set")
+    gr.Markdown("# GEN-AI Interior Designing Using IKEA Set")
     
     with gr.Row():
         with gr.Column():

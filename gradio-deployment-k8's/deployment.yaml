@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gradio-ml-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gradio-ml-app
+  template:
+    metadata:
+      labels:
+        app: gradio-ml-app
+    spec:
+      containers:
+      - name: gradio-ml-app
+        image: 381492199685.dkr.ecr.ap-south-1.amazonaws.com/gen-ai-interior-design-ikea:f199012c88a35719586ecbab9894e87d6cbf1b49
+        ports:
+        - containerPort: 7860
+        envFrom:
+        - configMapRef:
+            name: gradio-ml-app-config
+        resources:
+          limits:
+            nvidia.com/gpu: 1 # Request 1 GPU
+      restartPolicy: Always
+      imagePullSecrets:
+      - name: ecr-secret

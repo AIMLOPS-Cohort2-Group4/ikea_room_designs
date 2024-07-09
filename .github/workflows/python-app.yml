@@ -1,8 +1,4 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
 name: Python application
-
 
 on:
   push:
@@ -11,19 +7,18 @@ on:
     branches: [ "development" ]
 
 env:
-    AWS_REGION: ap-south-1
-    ECR_REPOSITORY: gen-ai-interior-design-ikea
-    ECS_SERVICE: service-1
-    ECS_CLUSTER: MLCluster
-    ECS_TASK_DEFINITION: sample-fargate-1.json
-    CONTAINER_NAME: generate_ai_room_designs
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: gen-ai-interior-design-ikea
+  ECS_SERVICE: service-1
+  ECS_CLUSTER: MLCluster
+  ECS_TASK_DEFINITION: sample-fargate-1.json
+  CONTAINER_NAME: generate_ai_room_designs
 
 permissions:
   contents: read
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -49,25 +44,36 @@ jobs:
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-        
   deploy:
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-south-1
 
-      - name: Update kubeconfig
-        run: |
-          aws eks --region ap-south-1 update-kubeconfig --name AI_ML_Capstone
+    - name: Update kubeconfig
+      run: |
+        aws eks --region ap-south-1 update-kubeconfig --name AI_ML_Capstone
 
-      - name: Get pods
-        run: |
-          kubectl get pods --all-namespaces
+    - name: Update deployment.yaml with new image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        sed -i 's|image: .*|image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|g' ./gradio-deployment-k8's/deployment.yaml
+
+    - name: Apply Kubernetes configuration
+      run: |
+        kubectl replace --force -f deployment.yaml -n gradio-fe
+
+    - name: Get pods
+      run: |
+        kubectl get all -n gradio-fe
