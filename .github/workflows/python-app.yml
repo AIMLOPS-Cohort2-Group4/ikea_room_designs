@@ -77,6 +77,11 @@ jobs:
       run: |
         kubectl replace --force -f ./gradio-deployment-k8/deployment.yaml -n gradio-fe
 
-    - name: Get pods
+    - name: Get Gradio-fe pods
       run: |
+        sleep 30s
         kubectl get all -n gradio-fe
+    - name: Get Monitor pods
+      run: |
+        sleep 30s
+        kubectl get all -n monitoring
