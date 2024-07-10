@@ -79,7 +79,7 @@ jobs:
 
     - name: Get Gradio-fe pods
       run: |
-        sleep 30s
+        sleep 2m30s
         kubectl get all -n gradio-fe
     - name: Get Monitor pods
       run: |
