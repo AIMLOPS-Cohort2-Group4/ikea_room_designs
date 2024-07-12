@@ -13,6 +13,7 @@ from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 import cv2
+from cosine_similarity import get_cosine_similarity
 
 from dotenv import load_dotenv
 
@@ -81,7 +82,7 @@ def generate_image(user_prompt, use_ai_prompt, ai_generated_prompt, selected_mod
     image.save(output_path)
 
     log_clip_score(image, prompt)
-    #log_cosine_similarity(prompt, output_path)
+    log_cosine_similarity(user_prompt, output_path, use_ai_prompt, ai_generated_prompt)
 
     return image
 
@@ -113,34 +114,20 @@ def CLIP_score_calculator(image, prompt):
 
 def log_clip_score(image, prompt):
     clip_score = CLIP_score_calculator(image, prompt)
-    print("CLIP score:", clip_score)
+    print("Clip score:", clip_score)
     
 
-def log_cosine_similarity(prompt, generated_image_path):
-    
-    image_caption = generate_image_caption(generated_image_path)
-    
-    X_list = word_tokenize(prompt)  
-    Y_list = word_tokenize(image_caption) 
-    
-    sw = stopwords.words('english')  
-    l1 =[];l2 =[] 
-    
-    X_set = {w for w in X_list if not w in sw}  
-    Y_set = {w for w in Y_list if not w in sw} 
-    
-    rvector = X_set.union(Y_set)  
-    for w in rvector: 
-        if w in X_set: l1.append(1) # create a vector 
-        else: l1.append(0) 
-        if w in Y_set: l2.append(1) 
-        else: l2.append(0) 
-    c = 0
-    
-    for i in range(len(rvector)): 
-            c+= l1[i]*l2[i] 
-    cosine = c / float((sum(l1)*sum(l2))**0.5) 
-    print("Similarity: ", cosine) 
+def log_cosine_similarity(user_prompt, output_path, use_ai_prompt, ai_generated_prompt):
+    image_caption = generate_image_caption(output_path)
+    if(use_ai_prompt and ai_generated_prompt.strip() != ""):
+        ai_generated_caption = improve_prompt(image_caption)
+        print("AI Generated Caption:", ai_generated_caption) 
+        cosine_similarity = get_cosine_similarity(ai_generated_prompt, ai_generated_caption)        
+    else:
+        print("Image Caption:", image_caption) 
+        cosine_similarity = get_cosine_similarity(user_prompt, image_caption)        
+        
+    print("Cosine Similarity: ", cosine_similarity) 
 
 def generate_image_caption(image_path):
 
