@@ -5,14 +5,9 @@ from diffusers import DiffusionPipeline
 from huggingface_hub import HfApi
 from openai import OpenAI
 from diffusers import StableDiffusionXLImg2ImgPipeline
-from diffusers.utils import load_image
-from functools import partial
-from nltk.corpus import stopwords 
-from nltk.tokenize import word_tokenize 
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
-import cv2
 from cosine_similarity import get_cosine_similarity
 
 from dotenv import load_dotenv
