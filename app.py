@@ -22,6 +22,8 @@ huggingfaceApKey = os.getenv("HUGGINGFACE_API_KEY")
 hugging_face_user = os.getenv("HUGGING_FACE_USERNAME")
 
 ikea_models = []
+sd1point5_base_model = "runwayml/stable-diffusion-v1-5"
+
 def getHuggingfaceModels():    
     api = HfApi()
     models = api.list_models(author=hugging_face_user, use_auth_token=huggingfaceApKey)
@@ -32,6 +34,7 @@ def getHuggingfaceModels():
         if model.modelId.startswith(prefix):
             model_name = model.modelId.replace(hugging_face_user + "/", "")
             ikea_models.append(model_name)
+    ikea_models.append(sd1point5_base_model)        
     return ikea_models
 
 def improve_prompt(prompt):
@@ -54,13 +57,17 @@ def generate_ai_prompt(prompt, use_ai_prompt):
     else:
         return ""
     
-def generate_image(user_prompt, use_ai_prompt, ai_generated_prompt, selected_model):
+def generate_image(user_prompt, use_ai_prompt, ai_generated_prompt, selected_model, cfg, num_inference_steps):
     if(use_ai_prompt and user_prompt.strip() != "" and ai_generated_prompt.strip() != ""):
         prompt = ai_generated_prompt
     else:
         prompt = user_prompt
 
-    model = hugging_face_user + "/" + selected_model
+    if(selected_model.startswith(sd1point5_base_model)):
+        model = selected_model
+    else:
+        model = hugging_face_user + "/" + selected_model
+       
     if("lora" in selected_model):
         pipe = DiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5")
         pipe.load_lora_weights(model)
@@ -69,7 +76,7 @@ def generate_image(user_prompt, use_ai_prompt, ai_generated_prompt, selected_mod
     
     pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
 
-    image = pipe(prompt).images[0]
+    image = pipe(prompt, num_inference_steps=num_inference_steps, cfg=cfg).images[0]
     output_path = "ui_screenshot/ai_generated_image.png"
     image.save(output_path)
 
@@ -161,7 +168,7 @@ def generate_image_caption(image_path):
 models = getHuggingfaceModels()
 
 with gr.Blocks() as demo:
-    gr.Markdown("# GEN-AI Interior Designing Using IKEA Set")
+    gr.Markdown("# Ikea Interior Room Designs!")
     
     with gr.Row():
         with gr.Column():
@@ -171,11 +178,18 @@ with gr.Blocks() as demo:
     with gr.Row():
         with gr.Column():
             user_prompt = gr.Textbox(label="Enter your prompt")
+            examples = gr.Examples(
+                examples=["Modern living room with sofa and coffee table", "Cozy bedroom with ample of sun light"],
+                inputs=[user_prompt],
+            )
         with gr.Column():
             ai_generated_prompt = gr.Textbox(label="AI generated detailed prompt")
-
+        
     with gr.Row():
         with gr.Column():
+            cfg = gr.Slider(1, 20, value=7.5, label="Guidance Scale", info="Choose between 1 and 20")
+            num_inference_steps = gr.Slider(10, 100, value=20, label="Inference Steps", info="Choose between 10 and 100")
+
             generate_image_button = gr.Button(value="Generate Image")
         with gr.Column():    
             generated_image_output = gr.Image(label="Generated Image", width=512, height=512, type="pil")
@@ -186,9 +200,8 @@ with gr.Blocks() as demo:
         with gr.Column():
             refine_image_output = gr.Image(label="Refined Image", width=512, height=512)
 
-
     user_prompt.submit(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt], outputs=[ai_generated_prompt])
-    generate_image_button.click(fn=generate_image, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt, model_list], outputs=[generated_image_output])
+    generate_image_button.click(fn=generate_image, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt, model_list, cfg, num_inference_steps], outputs=[generated_image_output])
     refine_image.click(fn=refine_generated_image, inputs=[generated_image_output], outputs=[refine_image_output])
 
 def launch():
