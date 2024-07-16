@@ -9,6 +9,14 @@ from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 from cosine_similarity import get_cosine_similarity
+from ultralytics import YOLO
+from ultralytics import SAM
+import numpy as np
+import cv2
+import utils
+from diffusers import AutoPipelineForInpainting
+from diffusers.utils import load_image
+import torch
 
 from dotenv import load_dotenv
 
@@ -93,7 +101,7 @@ def refine_generated_image(generated_image_output):
     refined_image = pipe(prompt, image=input_image).images[0]
     return refined_image
 
-def CLIP_score_calculator(image, prompt):
+def clip_score_calculator(image, prompt):
     clip_model_id = "openai/clip-vit-base-patch32"
     clip_model = CLIPModel.from_pretrained(clip_model_id)
     clip_processor = CLIPProcessor.from_pretrained(clip_model_id)
@@ -108,18 +116,15 @@ def CLIP_score_calculator(image, prompt):
     return score
 
 def log_clip_score(image, prompt):
-    clip_score = CLIP_score_calculator(image, prompt)
+    clip_score = clip_score_calculator(image, prompt)
     print("Clip score:", clip_score)
     
-
 def log_cosine_similarity(user_prompt, output_path, use_ai_prompt, ai_generated_prompt):
     image_caption = generate_image_caption(output_path)
     if(use_ai_prompt and ai_generated_prompt.strip() != ""):
         ai_generated_caption = improve_prompt(image_caption)
-        print("AI Generated Caption:", ai_generated_caption) 
         cosine_similarity = get_cosine_similarity(ai_generated_prompt, ai_generated_caption)        
     else:
-        print("Image Caption:", image_caption) 
         cosine_similarity = get_cosine_similarity(user_prompt, image_caption)        
         
     print("Cosine Similarity: ", cosine_similarity) 
@@ -146,6 +151,131 @@ def generate_image_caption(image_path):
     out = model.generate(**inputs, **generation_args)
     caption = processor.decode(out[0], skip_special_tokens=True)
     return caption
+
+identified_objects = []
+def identify_objects(use_refined_image, refine_image_output, generated_image_output):
+    result = get_result_from_yolo(use_refined_image, refine_image_output, generated_image_output)
+
+    for box in result.boxes:
+        class_id = result.names[box.cls[0].item()]
+        add_objects_as_unique_elements(identified_objects, class_id)
+    
+    return identified_objects
+
+def get_image_with_boxes(use_refined_image, refine_image_output, generated_image_output):
+    result = get_result_from_yolo(use_refined_image, refine_image_output, generated_image_output)
+    if(use_refined_image):
+        image = refine_image_output
+    else:
+        image = generated_image_output
+    input_boxes = []
+    for box in result.boxes:
+        cords = box.xyxy[0].tolist()
+        cords = [round(x) for x in cords]
+        input_boxes.append(cords)
+
+    return utils.show_boxes_on_image(image, input_boxes)
+
+def get_result_from_yolo(use_refined_image, refine_image_output, generated_image_output):
+    model = YOLO("yolov8m.pt")
+    if(use_refined_image):
+        results = model.predict(refine_image_output)
+    else:
+        results = model.predict(generated_image_output)  
+    result = results[0]
+    return result
+
+def add_objects_as_unique_elements(lst, element):
+    if element in lst:
+        counter = 2
+        new_element = f"{element}_{counter}"
+        while new_element in lst:
+            counter += 1
+            new_element = f"{element}_{counter}"
+        lst.append(new_element)
+    else:
+        lst.append(element)
+    return lst
+
+def object_segmentation(image, selected_object):
+    from transformers import pipeline
+    OWL_checkpoint = "google/owlvit-base-patch32"
+
+    detector = pipeline(
+        model= OWL_checkpoint,
+        task="zero-shot-object-detection"
+    )
+
+    output = detector(
+        image,
+        candidate_labels = [selected_object]
+    )
+    
+    SAM_version = "mobile_sam.pt"
+    model = SAM(SAM_version)
+    labels = np.repeat(1, len(output))
+
+    input_score, boxes = preprocess_outputs(output[0])
+    result = model.predict(
+        image,
+        bboxes=boxes,
+        labels=labels
+    )
+
+    masks = result[0].masks.data
+    
+    utils.create_mask_image(image, masks)
+
+    image_with_mask = utils.show_masks_on_image(
+        image,
+        masks
+    )
+
+    return image_with_mask
+
+def preprocess_outputs(output):
+    score = output["score"]
+
+    xmin = output["box"]["xmin"]
+    ymin = output["box"]["ymin"]
+    xmax = output["box"]["xmax"]
+    ymax = output["box"]["ymax"]
+
+    boxes = [xmin, ymin, xmax, ymax]
+    #print(boxes)
+    return score, boxes
+
+def identify_objects_button_click(use_refined_image, refine_image_output, generated_image_output):
+    identified_objects = gr.Dropdown(choices=identify_objects(use_refined_image, refine_image_output, generated_image_output), interactive=True)
+    image_with_boxes = get_image_with_boxes(use_refined_image, refine_image_output, generated_image_output)
+    return identified_objects, image_with_boxes
+
+def replace_object_in_image(use_refined_image, refine_image_output, generated_image_output, replace_prompt):
+    if(use_refined_image):
+        image = refine_image_output
+    else:
+        image = generated_image_output
+
+    pipe = AutoPipelineForInpainting.from_pretrained("diffusers/stable-diffusion-xl-1.0-inpainting-0.1", torch_dtype=torch.float16, variant="fp16").to("cuda")
+
+    mask_url = "ui_screenshot/masked_image.png"
+    image = image.resize((1024, 1024))
+    mask_image = load_image(mask_url).resize((1024, 1024))
+
+    prompt = replace_prompt
+    generator = torch.Generator(device="cuda").manual_seed(0)
+
+    image = pipe(
+        prompt=prompt,
+        image=image,
+        mask_image=mask_image,
+        guidance_scale=8.0,
+        num_inference_steps=20,  # steps between 15 and 30 work well for us
+        strength=0.99,  # make sure to use `strength` below 1.0
+        generator=generator,
+    ).images[0]
+
+    return image
 
 models = getHuggingfaceModels()
 
@@ -181,10 +311,35 @@ with gr.Blocks() as demo:
             refine_image = gr.Button(value="Refine Image")
         with gr.Column():
             refine_image_output = gr.Image(label="Refined Image", width=512, height=512)
+            
+    with gr.Row():
+        with gr.Column():
+            gr.Markdown(f"""### If you did not like any of the objects created in this image and want to change, Follow below steps:
+                        1. Click on Identify objects
+                        2. Choose if you want original image or refined image
+                        3. Select the object you want to change
+                        4. Provide instruction what you want in place of the object selected
+                        5. CLick Replace object""")
+            identify_objects_in_image = gr.Button(value="Identify Objects")
+        with gr.Column():
+            ""
+    with gr.Row():
+        with gr.Column():
+            use_refined_image = gr.Checkbox(value=True, label="Use refined image", info="Check this box to use refined image")                
+            objects_detected = gr.Dropdown(identified_objects, label="Select Object", info="Choose the object you want to replace", allow_custom_value=True)
+            with gr.Row():
+                replace_prompt = gr.Textbox(label="What you want to replace this object with?")
+            with gr.Row():    
+                replace_image_button = gr.Button(value="Change Object")
+        with gr.Column():
+            final_image_output = gr.Image(label="Final Image", width=512, height=512)
 
     user_prompt.submit(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt], outputs=[ai_generated_prompt])
     generate_image_button.click(fn=generate_image, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt, model_list, cfg, num_inference_steps], outputs=[generated_image_output])
     refine_image.click(fn=refine_generated_image, inputs=[generated_image_output], outputs=[refine_image_output])
+    identify_objects_in_image.click(fn=identify_objects_button_click, inputs=[use_refined_image, refine_image_output, generated_image_output], outputs=[objects_detected, final_image_output])
+    objects_detected.change(fn=object_segmentation, inputs=[generated_image_output, objects_detected], outputs=[final_image_output])
+    replace_image_button.click(fn=replace_object_in_image, inputs=[use_refined_image, refine_image_output, generated_image_output, replace_prompt], outputs=[final_image_output])
 
 def launch():
     demo.launch(server_name="0.0.0.0", server_port=7860)

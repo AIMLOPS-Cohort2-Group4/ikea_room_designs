@@ -9,3 +9,4 @@ openai
 safetensors
 invisible_watermark
 torchmetrics
+ultralytics
