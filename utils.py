@@ -49,7 +49,7 @@ def show_boxes_on_image(raw_image, boxes):
 
 def show_boxes_and_labels_on_image(raw_image, boxes, labels, scores):
     plt.figure(figsize=(10, 10))
-    plt.imshow(raw_image)
+    #plt.imshow(raw_image)
     for i, box in enumerate(boxes):
         show_box(box, plt.gca())
         plt.text(

@@ -155,27 +155,28 @@ def generate_image_caption(image_path):
 
 identified_objects = []
 def identify_objects(use_refined_image, refine_image_output, generated_image_output):
-    result = get_result_from_yolo(use_refined_image, refine_image_output, generated_image_output)
-
-    for box in result.boxes:
-        class_id = result.names[box.cls[0].item()]
-        add_objects_as_unique_elements(identified_objects, class_id)
-    
+    image  = Image.open("ui_screenshot/refined_image.png")
+    output = object_identification.get_all_objects_identified_from_owlvit(image)
+    input_scores, input_labels, input_boxes = utils.preprocess_outputs(output)
+    #print(input_labels)
+    # for box in result.boxes:
+    #     class_id = result.names[box.cls[0].item()]
+    #     add_objects_as_unique_elements(identified_objects, class_id)
+    identified_objects = input_labels
     return identified_objects
 
 def get_image_with_boxes(use_refined_image, refine_image_output, generated_image_output):
-    result = get_result_from_yolo(use_refined_image, refine_image_output, generated_image_output)
+    image  = Image.open("ui_screenshot/refined_image.png")
+    output = object_identification.get_all_objects_identified_from_owlvit(image)
     if(use_refined_image):
         image = refine_image_output
     else:
         image = generated_image_output
-    input_boxes = []
-    for box in result.boxes:
-        cords = box.xyxy[0].tolist()
-        cords = [round(x) for x in cords]
-        input_boxes.append(cords)
+    
+    input_scores, input_labels, input_boxes = utils.preprocess_outputs(output)
 
-    return utils.show_boxes_on_image(image, input_boxes)
+    return utils.show_boxes_on_image(image, input_boxes[0])
+    #return utils.show_boxes_and_labels_on_image(image, input_boxes[0], input_labels, input_scores)
 
 def get_result_from_yolo(use_refined_image, refine_image_output, generated_image_output):
     model = YOLO("yolov8m.pt")
@@ -200,7 +201,7 @@ def add_objects_as_unique_elements(lst, element):
 
 def object_segmentation(image, selected_object):
     image  = Image.open("ui_screenshot/refined_image.png")
-    output = object_identification.get_objects_identified_from_owlvit(image, selected_object)
+    output = object_identification.get_single_object_identified_from_owlvit(image, selected_object)
 
     SAM_version = "mobile_sam.pt"
     model = SAM(SAM_version)
