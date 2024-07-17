@@ -3,7 +3,7 @@ from diffusers import AutoPipelineForInpainting
 from diffusers.utils import load_image
 import torch
 
-def change_object(image_path, replace_prompt):
+def change_object(image_path, replace_prompt, final_cfg, strength, final_num_inference_steps, negative_prompt):
     image = Image.open(image_path)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
@@ -19,9 +19,10 @@ def change_object(image_path, replace_prompt):
         prompt=prompt,
         image=image,
         mask_image=mask_image,
-        guidance_scale=8.0,
-        num_inference_steps=20,  # steps between 15 and 30 work well for us
-        strength=1.0,  # make sure to use `strength` below 1.0
+        guidance_scale=final_cfg,
+        num_inference_steps=final_num_inference_steps,  # steps between 15 and 30 work well for us
+        strength=strength,  # make sure to use `strength` below 1.0
+        negative_prompt = negative_prompt,
         generator=generator,
     ).images[0]
 

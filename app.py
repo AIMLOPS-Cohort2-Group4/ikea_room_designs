@@ -238,7 +238,7 @@ def identify_objects_button_click(use_refined_image, refine_image_output, genera
     image_with_boxes = get_image_with_boxes(use_refined_image, refine_image_output, generated_image_output)
     return identified_objects, image_with_boxes
 
-def replace_object_in_image(use_refined_image, refine_image_output, generated_image_output, replace_prompt, final_image_output):
+def replace_object_in_image(use_refined_image, replace_prompt, final_image_output, final_cfg, strength, final_num_inference_steps, negative_prompt):
     if(final_image_output is None):
         if(use_refined_image):
             image_path = "ui_screenshot/refined_image.png"
@@ -247,7 +247,7 @@ def replace_object_in_image(use_refined_image, refine_image_output, generated_im
     else:
             image_path = "ui_screenshot/inpainted_image.png"
     
-    final_image = change.change_object(image_path, replace_prompt)
+    final_image = change.change_object(image_path, replace_prompt, final_cfg, strength, final_num_inference_steps, negative_prompt)
 
     return final_image
 
@@ -294,22 +294,28 @@ with gr.Blocks() as demo:
                         3. Select the object you want to change
                         4. Provide instruction what you want in place of the object selected
                         5. CLick Replace object""")
-            identify_objects_in_image = gr.Button(value="Identify Objects")
+            with gr.Row():        
+                identify_objects_in_image = gr.Button(value="Identify Objects")
+            with gr.Row():
+                use_refined_image = gr.Checkbox(value=True, label="Use refined image", info="Check this box to use refined image")                
+            with gr.Row():    
+                objects_detected = gr.Dropdown(identified_objects, label="Select Object", info="Choose the object you want to replace", allow_custom_value=True)
         with gr.Column():
-            ""
+            editing_image_output = gr.Image(label="Edit Image", width=512, height=512)
+
+            
     with gr.Row():
         with gr.Column():
-            use_refined_image = gr.Checkbox(value=True, label="Use refined image", info="Check this box to use refined image")                
-            objects_detected = gr.Dropdown(identified_objects, label="Select Object", info="Choose the object you want to replace", allow_custom_value=True)
             with gr.Row():
                 replace_prompt = gr.Textbox(label="What you want to replace this object with?")
             with gr.Row():    
-                replace_image_button = gr.Button(value="Change Object")
-        with gr.Column():
-            editing_image_output = gr.Image(label="Edit Image", width=512, height=512)
-    with gr.Row():
-        with gr.Column():
-            ""
+                final_cfg = gr.Slider(1, 20, value=8, label="Guidance Scale", info="Choose between 1 and 20", step=1)
+                strength = gr.Slider(0.0, 1.0, value=0.6, label="Strength", info="Choose between 0.0 and 1.0", step=0.1)
+            with gr.Row():    
+                final_num_inference_steps = gr.Slider(10, 100, value=20, label="Inference Steps", info="Choose between 10 and 100", step=1)
+                negative_prompt = gr.Textbox(label="Negative prompt")
+            with gr.Row():    
+                replace_image_button = gr.Button(value="Replace Object")
         with gr.Column():
             final_image_output = gr.Image(label="Final Image", width=512, height=512)
 
@@ -318,7 +324,7 @@ with gr.Blocks() as demo:
     refine_image.click(fn=refine_generated_image, inputs=[generated_image_output], outputs=[refine_image_output])
     identify_objects_in_image.click(fn=identify_objects_button_click, inputs=[use_refined_image, refine_image_output, generated_image_output], outputs=[objects_detected, editing_image_output])
     objects_detected.change(fn=object_segmentation, inputs=[refine_image_output, objects_detected], outputs=[editing_image_output])
-    replace_image_button.click(fn=replace_object_in_image, inputs=[use_refined_image, refine_image_output, generated_image_output, replace_prompt, final_image_output], outputs=[final_image_output])
+    replace_image_button.click(fn=replace_object_in_image, inputs=[use_refined_image, replace_prompt, final_image_output, final_cfg, strength, final_num_inference_steps, negative_prompt], outputs=[final_image_output])
 
 def launch():
     demo.launch(server_name="0.0.0.0", server_port=7860)
