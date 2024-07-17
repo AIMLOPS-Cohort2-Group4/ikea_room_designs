@@ -213,8 +213,6 @@ def object_segmentation(image, selected_object):
     )
 
     masks = result[0].masks.data
-    
-    utils.create_mask_image(image, masks)
 
     image_with_mask = utils.show_masks_on_image(
         image,
