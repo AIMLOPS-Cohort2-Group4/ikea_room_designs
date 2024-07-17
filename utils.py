@@ -41,6 +41,7 @@ def show_boxes_on_image(raw_image, boxes):
     for box in boxes:
         show_box(box, plt.gca())
     plt.axis("on")
+    #plt.show()
     plt.savefig("ui_screenshot/original_image_with_boxes.png")
     image = Image.open("ui_screenshot/original_image_with_boxes.png")
     return image
@@ -62,25 +63,7 @@ def show_boxes_and_labels_on_image(raw_image, boxes, labels, scores):
     plt.savefig("ui_screenshot/original_image_with_boxes.png")
     image = Image.open("ui_screenshot/original_image_with_boxes.png")
     return image
-
-def create_mask_image(image, masks):
-    image = np.array(image)
-
-    image_tensor = torch.tensor(image).cuda()  # Convert image to a PyTorch tensor on GPU
-    masked_image = image_tensor.clone()  # Create a copy for masking
-    masks = torch.tensor(masks).cuda()  # Convert mask to a PyTorch tensor on GPU
-
-    # Apply the mask using PyTorch operations
-    for i in range(masked_image.shape[2]):
-        masked_image[:, :, i] = torch.where(masks, masked_image[:, :, i], torch.tensor(1.0).cuda())
-
-    # Move the masked image back to CPU and convert to NumPy array
-    masked_image_cpu = masked_image.cpu().numpy().astype(np.uint8)
-
-    # Save the masked image using PIL
-    output_path = "ui_screenshot/masked_image.png"
-    Image.fromarray(masked_image_cpu).save(output_path)
-
+    
 def show_masks_on_image(raw_image, masks):
     # Ensure raw_image is in the correct format
     image_with_mask = raw_image.convert("RGBA")

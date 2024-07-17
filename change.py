@@ -3,8 +3,8 @@ from diffusers import AutoPipelineForInpainting
 from diffusers.utils import load_image
 import torch
 
-def change_object(refined_image_path, replace_prompt):
-    image = Image.open(refined_image_path)
+def change_object(image_path, replace_prompt):
+    image = Image.open(image_path)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     pipe = AutoPipelineForInpainting.from_pretrained("diffusers/stable-diffusion-xl-1.0-inpainting-0.1", torch_dtype=torch.float16, variant="fp16").to(device)
@@ -27,6 +27,7 @@ def change_object(refined_image_path, replace_prompt):
 
     output_path = "ui_screenshot/inpainted_image.png"
     image.save(output_path)
+    return image
     
 
 if __name__ == "__main__":

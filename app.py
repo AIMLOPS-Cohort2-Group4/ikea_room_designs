@@ -19,6 +19,7 @@ from diffusers.utils import load_image
 import torch
 import object_identification
 from dotenv import load_dotenv
+import change
 
 load_dotenv()
 
@@ -237,34 +238,18 @@ def identify_objects_button_click(use_refined_image, refine_image_output, genera
     image_with_boxes = get_image_with_boxes(use_refined_image, refine_image_output, generated_image_output)
     return identified_objects, image_with_boxes
 
-def replace_object_in_image(use_refined_image, refine_image_output, generated_image_output, replace_prompt):
-    if(use_refined_image):
-        image = refine_image_output
+def replace_object_in_image(use_refined_image, refine_image_output, generated_image_output, replace_prompt, final_image_output):
+    if(final_image_output is None):
+        if(use_refined_image):
+            image_path = "ui_screenshot/refined_image.png"
+        else:
+            image_path = "ui_screenshot/ai_generated_image.png"
     else:
-        image = generated_image_output
+            image_path = "ui_screenshot/inpainted_image.png"
+    
+    final_image = change.change_object(image_path, replace_prompt)
 
-    #pipe = AutoPipelineForInpainting.from_pretrained("diffusers/stable-diffusion-xl-1.0-inpainting-0.1").to(device)
-    pipe = AutoPipelineForInpainting.from_pretrained("diffusers/stable-diffusion-xl-1.0-inpainting-0.1", torch_dtype=torch.float16, variant="fp16").to(device)
-
-    mask_url = "ui_screenshot/masked_image.png"
-    mask_image = load_image(mask_url)
-    # image = image.resize((512, 512))
-    # mask_image = load_image(mask_url).resize((512, 512))
-
-    prompt = replace_prompt
-    generator = torch.Generator(device=device).manual_seed(0)
-
-    image = pipe(
-        prompt=prompt,
-        image=image,
-        mask_image=mask_image,
-        guidance_scale=8.0,
-        num_inference_steps=20,  # steps between 15 and 30 work well for us
-        strength=0.99,  # make sure to use `strength` below 1.0
-        generator=generator,
-    ).images[0]
-
-    return image
+    return final_image
 
 models = getHuggingfaceModels()
 
@@ -333,7 +318,7 @@ with gr.Blocks() as demo:
     refine_image.click(fn=refine_generated_image, inputs=[generated_image_output], outputs=[refine_image_output])
     identify_objects_in_image.click(fn=identify_objects_button_click, inputs=[use_refined_image, refine_image_output, generated_image_output], outputs=[objects_detected, editing_image_output])
     objects_detected.change(fn=object_segmentation, inputs=[refine_image_output, objects_detected], outputs=[editing_image_output])
-    replace_image_button.click(fn=replace_object_in_image, inputs=[use_refined_image, refine_image_output, generated_image_output, replace_prompt], outputs=[final_image_output])
+    replace_image_button.click(fn=replace_object_in_image, inputs=[use_refined_image, refine_image_output, generated_image_output, replace_prompt, final_image_output], outputs=[final_image_output])
 
 def launch():
     demo.launch(server_name="0.0.0.0", server_port=7860)
