@@ -17,7 +17,7 @@ import utils
 from diffusers import AutoPipelineForInpainting
 from diffusers.utils import load_image
 import torch
-
+import object_identification
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,6 +27,7 @@ hugging_face_user = os.getenv("HUGGING_FACE_USERNAME")
 
 ikea_models = []
 sd1point5_base_model = "runwayml/stable-diffusion-v1-5"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def getHuggingfaceModels():    
     api = HfApi()
@@ -99,6 +100,8 @@ def refine_generated_image(generated_image_output):
     
     prompt = ""
     refined_image = pipe(prompt, image=input_image).images[0]
+    output_path = "ui_screenshot/refined_image.png"
+    refined_image.save(output_path)
     return refined_image
 
 def clip_score_calculator(image, prompt):
@@ -130,9 +133,6 @@ def log_cosine_similarity(user_prompt, output_path, use_ai_prompt, ai_generated_
     print("Cosine Similarity: ", cosine_similarity) 
 
 def generate_image_caption(image_path):
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
     model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
 
@@ -198,19 +198,9 @@ def add_objects_as_unique_elements(lst, element):
     return lst
 
 def object_segmentation(image, selected_object):
-    from transformers import pipeline
-    OWL_checkpoint = "google/owlvit-base-patch32"
+    image  = Image.open("ui_screenshot/refined_image.png")
+    output = object_identification.get_objects_identified_from_owlvit(image, selected_object)
 
-    detector = pipeline(
-        model= OWL_checkpoint,
-        task="zero-shot-object-detection"
-    )
-
-    output = detector(
-        image,
-        candidate_labels = [selected_object]
-    )
-    
     SAM_version = "mobile_sam.pt"
     model = SAM(SAM_version)
     labels = np.repeat(1, len(output))
@@ -230,7 +220,6 @@ def object_segmentation(image, selected_object):
         image,
         masks
     )
-
     return image_with_mask
 
 def preprocess_outputs(output):
@@ -256,14 +245,16 @@ def replace_object_in_image(use_refined_image, refine_image_output, generated_im
     else:
         image = generated_image_output
 
-    pipe = AutoPipelineForInpainting.from_pretrained("diffusers/stable-diffusion-xl-1.0-inpainting-0.1", torch_dtype=torch.float16, variant="fp16").to("cuda")
+    #pipe = AutoPipelineForInpainting.from_pretrained("diffusers/stable-diffusion-xl-1.0-inpainting-0.1").to(device)
+    pipe = AutoPipelineForInpainting.from_pretrained("diffusers/stable-diffusion-xl-1.0-inpainting-0.1", torch_dtype=torch.float16, variant="fp16").to(device)
 
     mask_url = "ui_screenshot/masked_image.png"
-    image = image.resize((1024, 1024))
-    mask_image = load_image(mask_url).resize((1024, 1024))
+    mask_image = load_image(mask_url)
+    # image = image.resize((512, 512))
+    # mask_image = load_image(mask_url).resize((512, 512))
 
     prompt = replace_prompt
-    generator = torch.Generator(device="cuda").manual_seed(0)
+    generator = torch.Generator(device=device).manual_seed(0)
 
     image = pipe(
         prompt=prompt,
@@ -332,13 +323,18 @@ with gr.Blocks() as demo:
             with gr.Row():    
                 replace_image_button = gr.Button(value="Change Object")
         with gr.Column():
+            editing_image_output = gr.Image(label="Edit Image", width=512, height=512)
+    with gr.Row():
+        with gr.Column():
+            ""
+        with gr.Column():
             final_image_output = gr.Image(label="Final Image", width=512, height=512)
 
     user_prompt.submit(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt], outputs=[ai_generated_prompt])
     generate_image_button.click(fn=generate_image, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt, model_list, cfg, num_inference_steps], outputs=[generated_image_output])
     refine_image.click(fn=refine_generated_image, inputs=[generated_image_output], outputs=[refine_image_output])
-    identify_objects_in_image.click(fn=identify_objects_button_click, inputs=[use_refined_image, refine_image_output, generated_image_output], outputs=[objects_detected, final_image_output])
-    objects_detected.change(fn=object_segmentation, inputs=[generated_image_output, objects_detected], outputs=[final_image_output])
+    identify_objects_in_image.click(fn=identify_objects_button_click, inputs=[use_refined_image, refine_image_output, generated_image_output], outputs=[objects_detected, editing_image_output])
+    objects_detected.change(fn=object_segmentation, inputs=[refine_image_output, objects_detected], outputs=[editing_image_output])
     replace_image_button.click(fn=replace_object_in_image, inputs=[use_refined_image, refine_image_output, generated_image_output, replace_prompt], outputs=[final_image_output])
 
 def launch():

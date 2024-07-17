@@ -1,15 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-
-def show_mask(mask, ax, random_color=False):
-    if random_color:
-        color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)
-    else:
-        color = np.array([30/255, 144/255, 255/255, 0.6])
-    h, w = mask.shape[-2:]
-    mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
-    ax.imshow(mask_image)
+import torch
 
 def show_box(box, ax):
     x0, y0 = box[0], box[1]
@@ -84,15 +76,36 @@ def show_masks_on_image(raw_image, masks):
 
     return image
 
+def show_mask(mask, ax, random_color=False):
+    # Move mask to CPU if it's on GPU
+    if mask.is_cuda:
+        mask = mask.cpu()
+
+    if random_color:
+        color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)
+    else:
+        color = np.array([30/255, 144/255, 255/255, 0.6])
+
+    h, w = mask.shape[-2:]
+    mask_np = mask.numpy()  # Convert mask tensor to NumPy array
+    mask_image = mask_np.reshape(h, w, 1) * color.reshape(1, 1, -1)
+    
+    ax.imshow(mask_image)
+    
 def create_mask_image(image, masks):
     image = np.array(image)
 
-    masked_image = image.copy()
-    print(masked_image.shape)
+    image_tensor = torch.tensor(image).cuda()  # Convert image to a PyTorch tensor on GPU
+    masked_image = image_tensor.clone()  # Create a copy for masking
+    masks = torch.tensor(masks).cuda()  # Convert mask to a PyTorch tensor on GPU
 
+    # Apply the mask using PyTorch operations
     for i in range(masked_image.shape[2]):
-        masked_image[:, :, i] = np.where(masks, masked_image[:, :, i], 1)
-        #masked_image[:, :, i] = np.where(~masks, masked_image[:, :, i], 0)
+        masked_image[:, :, i] = torch.where(masks, masked_image[:, :, i], torch.tensor(1.0).cuda())
 
+    # Move the masked image back to CPU and convert to NumPy array
+    masked_image_cpu = masked_image.cpu().numpy().astype(np.uint8)
+
+    # Save the masked image using PIL
     output_path = "ui_screenshot/masked_image.png"
-    Image.fromarray(masked_image).save(output_path)
+    Image.fromarray(masked_image_cpu).save(output_path)
