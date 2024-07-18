@@ -254,7 +254,7 @@ with gr.Blocks() as demo:
         with gr.Column():
             refine_image = gr.Button(value="Refine Image")
         with gr.Column():
-            refine_image_output = gr.Image(label="Refined Image", width=512, height=512, value="ui_screenshot/refined_image.png")
+            refine_image_output = gr.Image(label="Refined Image", width=512, height=512)
             
     with gr.Row():
         with gr.Column():
