@@ -12,12 +12,9 @@ from cosine_similarity import get_cosine_similarity
 from ultralytics import YOLO
 from ultralytics import SAM
 import numpy as np
-import cv2
 import utils
-from diffusers import AutoPipelineForInpainting
 from diffusers.utils import load_image
 import torch
-import object_identification
 from dotenv import load_dotenv
 import change
 
