@@ -75,21 +75,26 @@ def show_masks_on_image(image, masks):
         mask = mask.cpu().numpy()
         
         height, width = mask.shape
-        mask_array = np.zeros((height, width, 4), dtype=np.uint8)
-        #color = [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 150]
-        color = [255, 255, 255, 255]
+        mask_array_display = np.zeros((height, width, 4), dtype=np.uint8)
+        mask_array_save = np.zeros((height, width, 4), dtype=np.uint8)
+
+        color_random = [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 150]
+        color_white = [255, 255, 255, 255]
         
-        mask_array[mask, :] = color
-        mask_image = Image.fromarray(mask_array)
+        mask_array_display[mask, :] = color_random
+        mask_image_display = Image.fromarray(mask_array_display)
+
+        mask_array_save[mask, :] = color_white
+        mask_image_save = Image.fromarray(mask_array_save)
 
         width, height = image_with_mask.size
-        mask_image = mask_image.resize((width, height))
         
-        image_with_mask = Image.alpha_composite(
-            image_with_mask,
-            mask_image)
+        mask_image_display = mask_image_display.resize((width, height))
+        mask_image_save = mask_image_save.resize((width, height))
+        
+        image_with_mask = Image.alpha_composite(image_with_mask, mask_image_display)
     
-        black_background = Image.alpha_composite(black_background, mask_image)
+        black_background = Image.alpha_composite(black_background, mask_image_save)
         black_background.save("ui_screenshot/masked_image.png")
 
     return image_with_mask

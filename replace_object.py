@@ -26,6 +26,7 @@ def change_object(image_path, replace_prompt, final_cfg, strength, final_num_inf
     )
     
     generated_image = output.images[0]
+    generated_image.save("ui_screenshot/inpainted_image.png")
     return generated_image
     
 
