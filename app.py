@@ -206,12 +206,9 @@ def identify_objects_button_click():
 
 def replace_object_in_image(use_refined_image, replace_prompt, final_image_output, final_cfg, strength, final_num_inference_steps, negative_prompt):
     if(final_image_output is None):
-        if(use_refined_image):
-            image_path = "ui_screenshot/refined_image.png"
-        else:
-            image_path = "ui_screenshot/ai_generated_image.png"
+        image_path = "ui_screenshot/refined_image.png"
     else:
-            image_path = "ui_screenshot/inpainted_image.png"
+        image_path = "ui_screenshot/inpainted_image.png"
     
     final_image = replace_object.change_object(image_path, replace_prompt, final_cfg, strength, final_num_inference_steps, negative_prompt)
 
