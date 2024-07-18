@@ -153,23 +153,24 @@ def generate_image_caption(image_path):
     caption = processor.decode(out[0], skip_special_tokens=True)
     return caption
 
-identified_objects = []
+objects = {}
 def get_objects_and_bounding_boxes():
     image  = Image.open("ui_screenshot/refined_image.png")
     output = get_result_from_yolo(image) 
 
     input_boxes = []
     input_scores = []
+    input_labels = []
     for box in output.boxes:
         class_id = output.names[box.cls[0].item()]
         cords = box.xyxy[0].tolist()
         conf = round(box.conf[0].item(), 2)
-        identified_objects.append(class_id)
+        input_labels.append(class_id)
         input_boxes.append(cords)
         input_scores.append(conf)
+        objects[class_id] = cords
 
-    return identified_objects, utils.show_boxes_and_labels_on_image(image, input_boxes, identified_objects, input_scores)
-    #return identified_objects, utils.show_boxes_on_image(image, input_boxes)
+    return input_labels, utils.show_boxes_and_labels_on_image(image, input_boxes, input_labels, input_scores)
 
 def get_result_from_yolo(image):
     model = YOLO("yolov8m.pt")
@@ -177,30 +178,19 @@ def get_result_from_yolo(image):
     result = results[0]
     return result
 
-def add_objects_as_unique_elements(lst, element):
-    if element in lst:
-        counter = 2
-        new_element = f"{element}_{counter}"
-        while new_element in lst:
-            counter += 1
-            new_element = f"{element}_{counter}"
-        lst.append(new_element)
-    else:
-        lst.append(element)
-    return lst
-
 def object_segmentation(image, selected_object):
     image  = Image.open("ui_screenshot/refined_image.png")
-    output = object_identification.get_single_object_identified_from_owlvit(image, selected_object)
 
     SAM_version = "mobile_sam.pt"
     model = SAM(SAM_version)
-    labels = np.repeat(1, len(output))
+    labels = np.repeat(1, 1)
 
-    input_score, boxes = preprocess_outputs(output[0])
+    input_boxes = objects.get(selected_object)
+    print(input_boxes)
+
     result = model.predict(
         image,
-        bboxes=boxes,
+        bboxes=input_boxes,
         labels=labels
     )
 
@@ -212,22 +202,10 @@ def object_segmentation(image, selected_object):
     )
     return image_with_mask
 
-def preprocess_outputs(output):
-    score = output["score"]
-
-    xmin = output["box"]["xmin"]
-    ymin = output["box"]["ymin"]
-    xmax = output["box"]["xmax"]
-    ymax = output["box"]["ymax"]
-
-    boxes = [xmin, ymin, xmax, ymax]
-    #print(boxes)
-    return score, boxes
-
-def identify_objects_button_click(use_refined_image, refine_image_output, generated_image_output):
+def identify_objects_button_click():
     objects, image_with_boxes = get_objects_and_bounding_boxes()
-    identified_objects = gr.Dropdown(choices=objects, interactive=True)
-    return identified_objects, image_with_boxes
+    result = gr.Dropdown(choices=objects, interactive=True)
+    return result, image_with_boxes
 
 def replace_object_in_image(use_refined_image, replace_prompt, final_image_output, final_cfg, strength, final_num_inference_steps, negative_prompt):
     if(final_image_output is None):
@@ -282,22 +260,21 @@ with gr.Blocks() as demo:
         with gr.Column():
             refine_image = gr.Button(value="Refine Image")
         with gr.Column():
-            refine_image_output = gr.Image(label="Refined Image", width=512, height=512, value="ui_screenshot/modern-living-room1.jpg")
+            refine_image_output = gr.Image(label="Refined Image", width=512, height=512, value="ui_screenshot/refined_image.png")
             
     with gr.Row():
         with gr.Column():
             gr.Markdown(f"""### If you did not like any of the objects created in this image and want to change, Follow below steps:
                         1. Click on Identify objects
-                        2. Choose if you want original image or refined image
-                        3. Select the object you want to change
-                        4. Provide instruction what you want in place of the object selected
-                        5. CLick Replace object""")
+                        2. Select the object you want to change
+                        3. Provide instruction what you want in place of the object selected
+                        4. CLick Replace object""")
             with gr.Row():        
                 identify_objects_in_image = gr.Button(value="Identify Objects")
             with gr.Row():
-                use_refined_image = gr.Checkbox(value=True, label="Use refined image", info="Check this box to use refined image")                
+                use_refined_image = gr.Checkbox(value=True, label="Use refined image", info="Check this box to use refined image", visible=False)                
             with gr.Row():    
-                objects_detected = gr.Dropdown(identified_objects, label="Select Object", info="Choose the object you want to replace", allow_custom_value=True)
+                objects_detected = gr.Dropdown([], label="Select Object", info="Choose the object you want to replace")
         with gr.Column():
             editing_image_output = gr.Image(label="Edit Image", width=512, height=512)
 
@@ -321,7 +298,7 @@ with gr.Blocks() as demo:
     generate_ai_prompt_button.click(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt], outputs=[ai_generated_prompt])
     generate_image_button.click(fn=generate_image, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt, model_list, cfg, num_inference_steps], outputs=[generated_image_output])
     refine_image.click(fn=refine_generated_image, inputs=[generated_image_output], outputs=[refine_image_output])
-    identify_objects_in_image.click(fn=identify_objects_button_click, inputs=[use_refined_image, refine_image_output, generated_image_output], outputs=[objects_detected, editing_image_output])
+    identify_objects_in_image.click(fn=identify_objects_button_click, outputs=[objects_detected, editing_image_output])
     objects_detected.change(fn=object_segmentation, inputs=[refine_image_output, objects_detected], outputs=[editing_image_output])
     replace_image_button.click(fn=replace_object_in_image, inputs=[use_refined_image, replace_prompt, final_image_output, final_cfg, strength, final_num_inference_steps, negative_prompt], outputs=[final_image_output])
 
