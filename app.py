@@ -16,7 +16,7 @@ import utils
 from diffusers.utils import load_image
 import torch
 from dotenv import load_dotenv
-import change
+import replace_object
 
 load_dotenv()
 
@@ -213,7 +213,7 @@ def replace_object_in_image(use_refined_image, replace_prompt, final_image_outpu
     else:
             image_path = "ui_screenshot/inpainted_image.png"
     
-    final_image = change.change_object(image_path, replace_prompt, final_cfg, strength, final_num_inference_steps, negative_prompt)
+    final_image = replace_object.change_object(image_path, replace_prompt, final_cfg, strength, final_num_inference_steps, negative_prompt)
 
     return final_image
 

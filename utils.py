@@ -63,38 +63,35 @@ def show_boxes_and_labels_on_image(raw_image, boxes, labels, scores):
     plt.savefig("ui_screenshot/original_image_with_boxes.png")
     image = Image.open("ui_screenshot/original_image_with_boxes.png")
     return image
+
+def show_masks_on_image(image, masks):
+    # Create a mask image (assuming binary mask)
+    #image_with_mask = Image.open(image_path).convert("RGBA")
+    image_with_mask = image.convert("RGBA")
     
-def show_masks_on_image(raw_image, masks):
-    # Ensure raw_image is in the correct format
-    image_with_mask = raw_image.convert("RGBA")
-    width, height = image_with_mask.size
-
-    # Convert raw image to a tensor on the GPU
-    image_tensor = torch.tensor(np.array(image_with_mask)).cuda()
-
+    black_background = Image.new('RGBA', (image_with_mask.width, image_with_mask.height), (0, 0, 0, 255))
+    
     for mask in masks:
-        # Ensure mask is a tensor on the GPU
-        mask = mask.cuda()
-
-        # Move mask to CPU and convert to NumPy array
-        mask_cpu = mask.cpu().numpy()
-
-        # Create a mask array
+        mask = mask.cpu().numpy()
+        
+        height, width = mask.shape
         mask_array = np.zeros((height, width, 4), dtype=np.uint8)
-        color = [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 150]
-
-        # Apply color to the mask array
-        mask_array[mask_cpu, :] = color
-
-        # Convert mask array to PIL Image
+        #color = [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 150]
+        color = [255, 255, 255, 255]
+        
+        mask_array[mask, :] = color
         mask_image = Image.fromarray(mask_array)
-        output_path = "ui_screenshot/masked_image.png"
-        mask_image.save(output_path)
 
-        # Overlay the mask on the image
-        image_with_mask = Image.alpha_composite(image_with_mask, mask_image)
+        width, height = image_with_mask.size
+        mask_image = mask_image.resize((width, height))
+        
+        image_with_mask = Image.alpha_composite(
+            image_with_mask,
+            mask_image)
+    
+        black_background = Image.alpha_composite(black_background, mask_image)
+        black_background.save("ui_screenshot/masked_image.png")
 
-    # Display the result
     return image_with_mask
 
 def show_multiple_masks_on_image(raw_image, masks, scores):
