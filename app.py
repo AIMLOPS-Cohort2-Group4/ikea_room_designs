@@ -154,36 +154,26 @@ def generate_image_caption(image_path):
     return caption
 
 identified_objects = []
-def identify_objects(use_refined_image, refine_image_output, generated_image_output):
+def get_objects_and_bounding_boxes():
     image  = Image.open("ui_screenshot/refined_image.png")
-    output = object_identification.get_all_objects_identified_from_owlvit(image)
-    input_scores, input_labels, input_boxes = utils.preprocess_outputs(output)
-    #print(input_labels)
-    # for box in result.boxes:
-    #     class_id = result.names[box.cls[0].item()]
-    #     add_objects_as_unique_elements(identified_objects, class_id)
-    identified_objects = input_labels
-    return identified_objects
+    output = get_result_from_yolo(image) 
 
-def get_image_with_boxes(use_refined_image, refine_image_output, generated_image_output):
-    image  = Image.open("ui_screenshot/refined_image.png")
-    output = object_identification.get_all_objects_identified_from_owlvit(image)
-    if(use_refined_image):
-        image = refine_image_output
-    else:
-        image = generated_image_output
-    
-    input_scores, input_labels, input_boxes = utils.preprocess_outputs(output)
+    input_boxes = []
+    input_scores = []
+    for box in output.boxes:
+        class_id = output.names[box.cls[0].item()]
+        cords = box.xyxy[0].tolist()
+        conf = round(box.conf[0].item(), 2)
+        identified_objects.append(class_id)
+        input_boxes.append(cords)
+        input_scores.append(conf)
 
-    return utils.show_boxes_on_image(image, input_boxes[0])
-    #return utils.show_boxes_and_labels_on_image(image, input_boxes[0], input_labels, input_scores)
+    return identified_objects, utils.show_boxes_and_labels_on_image(image, input_boxes, identified_objects, input_scores)
+    #return identified_objects, utils.show_boxes_on_image(image, input_boxes)
 
-def get_result_from_yolo(use_refined_image, refine_image_output, generated_image_output):
+def get_result_from_yolo(image):
     model = YOLO("yolov8m.pt")
-    if(use_refined_image):
-        results = model.predict(refine_image_output)
-    else:
-        results = model.predict(generated_image_output)  
+    results = model.predict(image)
     result = results[0]
     return result
 
@@ -235,8 +225,8 @@ def preprocess_outputs(output):
     return score, boxes
 
 def identify_objects_button_click(use_refined_image, refine_image_output, generated_image_output):
-    identified_objects = gr.Dropdown(choices=identify_objects(use_refined_image, refine_image_output, generated_image_output), interactive=True)
-    image_with_boxes = get_image_with_boxes(use_refined_image, refine_image_output, generated_image_output)
+    objects, image_with_boxes = get_objects_and_bounding_boxes()
+    identified_objects = gr.Dropdown(choices=objects, interactive=True)
     return identified_objects, image_with_boxes
 
 def replace_object_in_image(use_refined_image, replace_prompt, final_image_output, final_cfg, strength, final_num_inference_steps, negative_prompt):
@@ -262,16 +252,23 @@ with gr.Blocks() as demo:
             model_list = gr.Dropdown(models, value=ikea_models[0], label="Select Model", info="Choose the Image generation model you want to try!")
         with gr.Column():
             use_ai_prompt = gr.Checkbox(value=True, label="Use AI to generate detailed prompt", info="Check this box to generate a detailed prompt from AI based on your input")
+    
     with gr.Row():
         with gr.Column():
-            user_prompt = gr.Textbox(label="Enter your prompt")
-            examples = gr.Examples(
-                examples=["Modern living room with sofa and coffee table", "Cozy bedroom with ample of sun light"],
-                inputs=[user_prompt],
-            )
+            with gr.Row():
+                user_prompt = gr.Textbox(label="Enter your prompt")
+            with gr.Row():    
+                examples = gr.Examples(
+                    examples=["Modern living room with sofa and coffee table", "Cozy bedroom with ample of sun light"],
+                    inputs=[user_prompt],
+                )
+            with gr.Row():
+                generate_ai_prompt_button = gr.Button(value="Generate AI Prompt")
         with gr.Column():
             ai_generated_prompt = gr.Textbox(label="AI generated detailed prompt")
-        
+
+    gr.HTML("<br>")
+
     with gr.Row():
         with gr.Column():
             cfg = gr.Slider(1, 20, value=7.5, label="Guidance Scale", info="Choose between 1 and 20")
@@ -285,7 +282,7 @@ with gr.Blocks() as demo:
         with gr.Column():
             refine_image = gr.Button(value="Refine Image")
         with gr.Column():
-            refine_image_output = gr.Image(label="Refined Image", width=512, height=512)
+            refine_image_output = gr.Image(label="Refined Image", width=512, height=512, value="ui_screenshot/modern-living-room1.jpg")
             
     with gr.Row():
         with gr.Column():
@@ -321,6 +318,7 @@ with gr.Blocks() as demo:
             final_image_output = gr.Image(label="Final Image", width=512, height=512)
 
     user_prompt.submit(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt], outputs=[ai_generated_prompt])
+    generate_ai_prompt_button.click(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt], outputs=[ai_generated_prompt])
     generate_image_button.click(fn=generate_image, inputs=[user_prompt, use_ai_prompt, ai_generated_prompt, model_list, cfg, num_inference_steps], outputs=[generated_image_output])
     refine_image.click(fn=refine_generated_image, inputs=[generated_image_output], outputs=[refine_image_output])
     identify_objects_in_image.click(fn=identify_objects_button_click, inputs=[use_refined_image, refine_image_output, generated_image_output], outputs=[objects_detected, editing_image_output])
