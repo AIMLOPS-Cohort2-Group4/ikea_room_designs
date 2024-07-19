@@ -231,7 +231,7 @@ with gr.Blocks() as demo:
                 user_prompt = gr.Textbox(label="Enter your prompt")
             with gr.Row():    
                 examples = gr.Examples(
-                    examples=["Modern living room with sofa and coffee table", "Cozy bedroom with ample of sun light"],
+                    examples=["Modern living room with sofa, coffee table and tv", "Cozy bedroom with ample of sun light and wardrobe"],
                     inputs=[user_prompt],
                 )
             with gr.Row():
