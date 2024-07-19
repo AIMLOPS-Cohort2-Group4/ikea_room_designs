@@ -158,14 +158,26 @@ def get_objects_and_bounding_boxes():
     input_boxes = []
     input_scores = []
     input_labels = []
+    class_id_counter = {}
     for box in output.boxes:
         class_id = output.names[box.cls[0].item()]
         cords = box.xyxy[0].tolist()
         conf = round(box.conf[0].item(), 2)
-        input_labels.append(class_id)
         input_boxes.append(cords)
         input_scores.append(conf)
-        objects[class_id] = cords
+
+        if class_id in input_labels:
+            if class_id in class_id_counter:
+                class_id_counter[class_id] += 1
+            else:
+                class_id_counter[class_id] = 1
+            new_class_id = f"{class_id} - {class_id_counter[class_id]}"
+            input_labels.append(new_class_id)
+            objects[new_class_id] = cords
+        else:
+            input_labels.append(class_id)
+            class_id_counter[class_id] = 1  # Initialize counter
+            objects[class_id] = cords
 
     return input_labels, utils.show_boxes_and_labels_on_image(image, input_boxes, input_labels, input_scores)
 
@@ -244,7 +256,7 @@ with gr.Blocks() as demo:
     with gr.Row():
         with gr.Column():
             cfg = gr.Slider(1, 20, value=7.5, label="Guidance Scale", info="Choose between 1 and 20")
-            num_inference_steps = gr.Slider(10, 100, value=20, label="Inference Steps", info="Choose between 10 and 100")
+            num_inference_steps = gr.Slider(10, 100, value=20, label="Inference Steps", info="Choose between 10 and 100", step=1)
 
             generate_image_button = gr.Button(value="Generate Image")
         with gr.Column():    
@@ -254,7 +266,7 @@ with gr.Blocks() as demo:
         with gr.Column():
             refine_image = gr.Button(value="Refine Image")
         with gr.Column():
-            refine_image_output = gr.Image(label="Refined Image", width=512, height=512)
+            refine_image_output = gr.Image(label="Refined Image", width=512, height=512, value="ui_screenshot/refined_image.png")
             
     with gr.Row():
         with gr.Column():
