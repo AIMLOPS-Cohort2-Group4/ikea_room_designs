@@ -243,7 +243,7 @@ with gr.Blocks() as demo:
                 user_prompt = gr.Textbox(label="Enter your prompt")
             with gr.Row():    
                 examples = gr.Examples(
-                    examples=["Modern living room with sofa, coffee table and tv", "Cozy bedroom with ample of sun light and wardrobe"],
+                    examples=["Modern living room with sofa, coffee table", "Cozy bedroom with ample of sun light and wardrobe"],
                     inputs=[user_prompt],
                 )
             with gr.Row():
@@ -298,7 +298,7 @@ with gr.Blocks() as demo:
             with gr.Row():    
                 replace_image_button = gr.Button(value="Replace Object")
         with gr.Column():
-            final_image_output = gr.Image(label="Final Image", width=512, height=512)
+            final_image_output = gr.Image(label="Final Image")
 
     user_prompt.submit(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt], outputs=[ai_generated_prompt])
     generate_ai_prompt_button.click(fn=generate_ai_prompt, inputs=[user_prompt, use_ai_prompt], outputs=[ai_generated_prompt])
